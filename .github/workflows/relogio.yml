@@ -1,12 +1,16 @@
-# Relógio: bate nos horários marcados. Por enquanto em teste do agendamento.
+# Relógio reserva: bate nos horários marcados e chama o endereço guardado no segredo DESTINO.
+# Não há código nem dado de nenhum sistema aqui, e nada do que é chamado aparece nos registros.
 name: Relógio
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "7,37 11-21 * * 1-5"   # dias úteis, a cada meia hora (8h07 às 18h37 de Brasília)
+    - cron: "7 13,21 * * 0,6"      # sábado e domingo, duas vezes
+    - cron: "43 5 * * 1"           # segunda de madrugada: mantém o agendamento ligado
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  actions: write   # só para o relógio se manter ligado: o GitHub desliga agendamentos de repositório parado
 
 concurrency:
   group: relogio
@@ -15,7 +19,20 @@ concurrency:
 jobs:
   tique:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - name: Tique
-        run: date -u "+%Y-%m-%dT%H:%MZ"
+        env:
+          HORARIO: ${{ github.event.schedule }}
+          DESTINO: ${{ secrets.DESTINO }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Só o código da resposta aparece aqui; o endereço e a resposta ficam fora do registro.
+          if [ "$HORARIO" = "43 5 * * 1" ]; then
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/relogio.yml/enable" >/dev/null 2>&1 || true
+            exit 0
+          fi
+          if [ -z "$DESTINO" ]; then echo "sem destino"; exit 0; fi
+          codigo=$(curl -s -o /dev/null -w "%{http_code}" -m 150 -X POST "$DESTINO" 2>/dev/null || true)
+          echo "tique: ${codigo:-000}"
+          [ "$codigo" = "200" ]
