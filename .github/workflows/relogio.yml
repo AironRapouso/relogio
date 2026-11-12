@@ -1,0 +1,21 @@
+# Relógio: bate nos horários marcados. Por enquanto em teste do agendamento.
+name: Relógio
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: relogio
+  cancel-in-progress: false
+
+jobs:
+  tique:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Tique
+        run: date -u "+%Y-%m-%dT%H:%MZ"
